@@ -3,21 +3,26 @@ import pytest
 
 
 def salivate(environment):
-	pass
+    pass
+
 
 def eat(environment):
-	pass
+    pass
+
 
 def bell_with_food(environment):
-	environment['food_present'] = 1.0
-	return 0.0, environment
+    environment['food_present'] = 1.0
+    return 0.0, environment
+
 
 def bell_without_food(environment):
-	return 
+    return
+
 
 @pytest.mark.experiment
 def test_learns_salivate():
     pass
+
 
 @pytest.mark.experiment
 def test_learns_bell():
