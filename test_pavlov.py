@@ -183,6 +183,7 @@ def test_learn_with_repetition():
     for i in range(REPS):
         for action in TEST_ACTIONS:
             subject.learn(action, EPOCHS)
+            subject.decide()
 
     # standard assertions across all
     assert_prediction(subject, error=ERROR)
@@ -190,21 +191,20 @@ def test_learn_with_repetition():
 
 @pytest.mark.experiment
 def test_random_history():
-    EPOCHS = 2000
-    ERROR = 0.1
-    REPS = 1000
-    TEST_ACTIONS = [low_action, high_action]
+    EPOCHS = 200
+    ERROR = 0.2
+    REPS = 50
+    TEST_ACTIONS = [low_action, middle_action, high_action]
     MEMORY = 1
-    LAYERS = 150
+    LAYERS = 3
 
     subject = Respondant(actions=TEST_ACTIONS,
                          hidden_layers=LAYERS, sequence_memory=MEMORY)
 
     for i in range(REPS):
         random_choice = random.choice(TEST_ACTIONS)
-        print(subject.input_data(random_choice),
-              random_choice({}), subject.predict(random_choice))
-        subject.learn(random_choice)
+        subject.learn(random_choice, EPOCHS)
+        subject.decide()
 
     # standard assertions across all
     assert_prediction(subject, ERROR)

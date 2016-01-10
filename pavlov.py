@@ -1,13 +1,12 @@
 from collections import OrderedDict
 from neupy import algorithms
 import numpy as np
-import logging
 
 
 np.random.seed(0)
 
-EPOCHS = 2000
-LAYERS = 150
+EPOCHS = 200
+LAYERS = 2
 STEPS = 0.1
 
 
@@ -69,6 +68,9 @@ class Respondant(object):
             step=steps,
             # show_epoch=1000,
         )
+
+        # store predictions for plotting later
+        self.predictions = dict([(a, []) for a in self.events.keys()])
 
     def input_data(self, event, environment=None):
         "Given an event, returns the data normalised ready for the network"
@@ -133,18 +135,37 @@ class Respondant(object):
         # [0][0] to return just the predicted outcome, rather than the array
         return predicted[0][0]
 
-    def decide(self):
+    def decide(self, environment=None):
         """Work out which action is best to take,
         based on the situation and events"""
         best_action = None
         best_outcome = 0
-        for event in self.events.keys():
-            # can only decide to do actions
-            # stimuli act on it
-            if event in self.actions:
-                outcome = self.predict(event)
-                print(event.__name__, outcome)
-                if best_outcome < outcome or best_action is None:
-                    best_action = event
-                    best_outcome = outcome
+        for action in self.actions:
+            # predict the outcome
+            outcome = self.predict(action, environment)
+
+            # take note of the best
+            if best_outcome < outcome or best_action is None:
+                best_action = action
+                best_outcome = outcome
+
+            # store prediction
+            self.predictions[action].append(outcome)
+
+        # also store stimuli, for reference
+        for stimuli in self.stimuli:
+            outcome = self.predict(stimuli, environment)
+            self.predictions[stimuli].append(outcome)
+
+        # return the best action
         return best_action
+
+    def plot_predictions(self):
+        "Plots any predictions generated from calling decide"
+        import matplotlib.pyplot as plt
+        for key_func, data in self.predictions.items():
+            plt.plot(data, label=key_func.__name__)
+        plt.axis([0, len(data), 0, 1])
+        plt.legend(loc=3)
+        plt.grid(True)
+        plt.show()
