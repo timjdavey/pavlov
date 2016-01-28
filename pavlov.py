@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from neupy import algorithms
 import numpy as np
+import random
 
 
 np.random.seed(0)
@@ -16,7 +17,7 @@ def normalised_dict_from_list(basic_list):
     with the items from the list as the keys,
     the values as values
     """
-    d = {}
+    d = OrderedDict()
     if type(basic_list) not in (list, tuple):
         raise TypeError("Input must be a list or tuple")
     length = len(basic_list)
@@ -35,8 +36,9 @@ class Respondant(object):
 
     def __init__(self,
                  actions=None, environment=None, stimuli=None,
-                 sequence_memory=0,
-                 hidden_layers=LAYERS, steps=STEPS):
+                 sequence_memory=0, verbose_neurons=True,
+                 hidden_layers=LAYERS, steps=STEPS,
+                 scenarios=None):
         # turn the actions&stimuli into network friendly input [0:1]
         self.actions = tuple() if actions is None else tuple(actions)
         self.stimuli = tuple() if stimuli is None else tuple(stimuli)
@@ -59,36 +61,30 @@ class Respondant(object):
             self.history = list()
 
         # number of input neurons =
-        # current action, historical actions
-        inputs = 1 + self.sequence_memory + len(self.environment)
+        self.verbose_neurons = verbose_neurons
+        if verbose_neurons:
+            # 1 input per event, per history, and environment inputs
+            inputs = len(self.events) * (self.sequence_memory + 1)\
+                + len(self.environment)
+        else:
+            # current event + historical events, and environment
+            inputs = 1 + self.sequence_memory + len(self.environment)
 
         # generate network
         self.net = algorithms.Backpropagation(
-            (inputs, hidden_layers, 1),
-            step=steps,
-            # show_epoch=1000,
+            (inputs, hidden_layers, 1), step=steps,
         )
 
-        # store predictions for plotting later
-        self.predictions = dict([(a, []) for a in self.events.keys()])
+        # for storage and plotting
+        self.scenarios = scenarios
+        if scenarios:
+            scenes = [(k, []) for k in scenarios.keys()]
+            self.predictions = OrderedDict(sorted(scenes, key=lambda k: k[0]))
 
-    def input_data(self, event, environment=None):
-        "Given an event, returns the data normalised ready for the network"
-        # takes the normalised action as minimum input
-        try:
-            data = [self.events[event]]
-        except KeyError:
-            raise KeyError("%s is not a valid event" % event)
-
-        # then append historical events
-        for i in range(self.sequence_memory):
-            try:
-                item = self.events[self.history[-(i + 1)]]
-            # if no historical events, use the provided event
-            # not particularly accurate but washes it's face
-            except IndexError:
-                item = data[0]
-            data.append(item)
+    def input_defaults(self, environment, history):
+        "Returns self values if None passed"
+        if history is None:
+            history = self.history
 
         # then append environment inputs
         if environment is None:
@@ -101,6 +97,49 @@ class Respondant(object):
             if environment.keys() != self.environment.keys():
                 raise KeyError(
                     "Passed environment must match staring env")
+
+        return environment, history
+
+    def input_data(self, event, environment=None, history=None):
+        "Given an event, returns the data normalised ready for the network"
+
+        environment, history = self.input_defaults(environment, history)
+
+        if self.verbose_neurons:
+            data = []
+            # signal which event is "on" as input
+            for e in self.events:
+                data.append(1 if e == event else 0)
+            # do the same for memory
+            for i in range(self.sequence_memory):
+                try:
+                    historical_event = history[-(i + 1)]
+                # for the first few iterations where there is no history
+                # simply use the inputted event
+                except IndexError:
+                    historical_event = event
+                except TypeError:
+                    raise TypeError("history must be a list")
+                # then loop through and add that historical
+                for e in self.events:
+                    data.append(1 if e == historical_event else 0)
+
+        else:
+            # takes the normalised action as minimum input
+            try:
+                data = [self.events[event]]
+            except KeyError:
+                raise KeyError("%s is not a valid event" % event)
+
+            # then append historical events
+            for i in range(self.sequence_memory):
+                try:
+                    item = self.events[history[-(i + 1)]]
+                # if no historical events, use the provided event
+                # not particularly accurate but washes it's face
+                except IndexError:
+                    item = data[0]
+                data.append(item)
 
         # pass (ordered) into network
         for key, value in environment.items():
@@ -128,14 +167,15 @@ class Respondant(object):
         # store the event it's sequence memory
         self.history.append(event)
 
-    def predict(self, event, environment=None):
+    def predict(self, event, environment=None, history=None):
         "Prediction of an outcome based on an event and environment"
         # predict based on given
-        predicted = self.net.predict(self.input_data(event, environment))
+        raw_inputs = self.input_data(event, environment, history)
+        predicted = self.net.predict(raw_inputs)
         # [0][0] to return just the predicted outcome, rather than the array
         return predicted[0][0]
 
-    def decide(self, environment=None):
+    def decide(self, environment=None, randomised=0):
         """Work out which action is best to take,
         based on the situation and events"""
         best_action = None
@@ -143,29 +183,31 @@ class Respondant(object):
         for action in self.actions:
             # predict the outcome
             outcome = self.predict(action, environment)
-
+            # if randomised decision making
+            outcome += randomised * random.random()
             # take note of the best
             if best_outcome < outcome or best_action is None:
                 best_action = action
                 best_outcome = outcome
 
-            # store prediction
-            self.predictions[action].append(outcome)
-
-        # also store stimuli, for reference
-        for stimuli in self.stimuli:
-            outcome = self.predict(stimuli, environment)
-            self.predictions[stimuli].append(outcome)
-
         # return the best action
         return best_action
+
+    def store_predictions(self):
+        "Stores predictions given a set of scenarios"
+        if self.scenarios:
+            for key, value in self.scenarios.items():
+                self.predictions[key].append(self.predict(*value))
+        else:
+            raise ValueError("scenarios must be set at __init__")
 
     def plot_predictions(self):
         "Plots any predictions generated from calling decide"
         import matplotlib.pyplot as plt
-        for key_func, data in self.predictions.items():
-            plt.plot(data, label=key_func.__name__)
-        plt.axis([0, len(data), 0, 1])
-        plt.legend(loc=3)
-        plt.grid(True)
-        plt.show()
+        if self.scenarios:
+            for key, data in self.predictions.items():
+                plt.plot(data, label=key)
+            plt.axis([0, len(data), 0, 1])
+            plt.legend(loc=1)
+            plt.grid(True)
+            plt.show()

@@ -44,7 +44,7 @@ def test_input_data_history():
     # First test with no sequence memory
     fish = Respondant(
         actions=[low_action, high_action],
-        sequence_memory=0)
+        sequence_memory=0, verbose_neurons=False)
 
     # simply check that input is purely low_action normalised input
     assert fish.input_data(low_action) == [[0.0]]
@@ -57,7 +57,7 @@ def test_input_data_history():
     # Then check a good memory
     elephant = Respondant(
         actions=[low_action, high_action],
-        sequence_memory=2)
+        sequence_memory=2, verbose_neurons=False)
     # for first few supply arbitaray data (i.e. the supplied action)
     assert elephant.input_data(low_action) == [[0.0, 0.0, 0.0]]
     assert elephant.history == []
@@ -79,12 +79,36 @@ def test_input_data_history():
 
 
 @pytest.mark.core
+def test_verbose_neuron_input_data():
+    TEST_ACTIONS = [low_action, high_action]
+    STIMULI = [environment_stimulus]
+    ENVIRON = {'a': 0.1, 'z': 0.9}
+
+    extras = Respondant(actions=TEST_ACTIONS, environment=ENVIRON,
+                        stimuli=STIMULI, verbose_neurons=True)
+
+    # actions + stimuli + environment
+    assert extras.input_data(low_action) == [[1, 0, 0, 0.1, 0.9]]
+    assert extras.input_data(high_action) == [[0, 1, 0, 0.1, 0.9]]
+    assert extras.input_data(environment_stimulus) == [[0, 0, 1, 0.1, 0.9]]
+
+    history = Respondant(actions=TEST_ACTIONS, environment={'a': 0.1},
+                         sequence_memory=1, verbose_neurons=True)
+
+    # uses inputted event as default for history (low_action, low_action, env)
+    assert history.input_data(low_action) == [[1, 0, 1, 0, 0.1]]
+    history.learn(low_action)
+    # assert starts with latest action, then history, then environment
+    assert history.input_data(high_action) == [[0, 1, 1, 0, 0.1]]
+
+
+@pytest.mark.core
 def test_input_data_environment():
     TEST_ACTIONS = [low_action, high_action]
     ENVIRON = {'a': 0.1, 'z': 0.9}
 
-    subject = Respondant(actions=TEST_ACTIONS,
-                         environment=ENVIRON, sequence_memory=1)
+    subject = Respondant(actions=TEST_ACTIONS, environment=ENVIRON,
+                         verbose_neurons=False, sequence_memory=1)
 
     # action, memory(1), self.environment
     assert subject.input_data(low_action) == [[0.0, 0.0, 0.1, 0.9]]
@@ -99,7 +123,7 @@ def test_input_data_failures():
     TEST_ACTIONS = [low_action, high_action]
     ENVIRON = {'a': 0.1, 'z': 0.9}
 
-    subject = Respondant(actions=TEST_ACTIONS,
+    subject = Respondant(actions=TEST_ACTIONS, verbose_neurons=False,
                          environment=ENVIRON, sequence_memory=1)
 
     # action not in list
@@ -193,7 +217,7 @@ def test_learn_with_repetition():
 def test_random_history():
     EPOCHS = 200
     ERROR = 0.2
-    REPS = 50
+    REPS = 150
     TEST_ACTIONS = [low_action, middle_action, high_action]
     MEMORY = 1
     LAYERS = 3
@@ -208,6 +232,7 @@ def test_random_history():
 
     # standard assertions across all
     assert_prediction(subject, ERROR)
+    subject.plot_predictions()
 
 
 def test_epochs_vs_reps():
