@@ -5,17 +5,21 @@ except SystemError:
 import pytest
 import random
 
+# ENVIRONMENT VARIABLES
+
 DANGER = 'in_danger'
 GATE = 'get_is_closed'
+
+# ACTIONS
 
 
 def rest(environment):
     "Just sit and lie down to rest"
     if environment[DANGER]:
-        # if in pain, return 0.0
+        # if in pain, return no enjoyment
         return 0.1, environment
     else:
-        # otherwise if chilled, enjoy life
+        # otherwise if resting, enjoys life
         return 0.6, environment
 
 
@@ -29,6 +33,7 @@ def run(environment):
         else:
             # get open, can escape
             environment[DANGER] = 0
+            # happy about escaping
             return 0.5, environment
     else:
         # is just running for fun
@@ -46,11 +51,27 @@ STIMULI = [shock]
 
 @pytest.mark.experiment
 def test_learned_helplessness():
+    """
+    The key result we're looking for
+    is that the subject first learns to
+    * rest when not in danger
+    * to rest when in danger and can escape (gate is open)
+    * to rest when that danger is removed
 
+    This is the basis of "learned helplessness"
+
+    To test:
+    * Does this occur when remove artifical success
+        stimulus when escapes danger? (will need to add history)
+    """
+
+    # helpers for environment conditions
+    # used when building prediction scenarios below
     normal = {DANGER: 0, GATE: 0}
     in_danger_gate_open = {DANGER: 1, GATE: 0}
     in_danger_gate_closed = {DANGER: 1, GATE: 1}
 
+    # used for plotting predictions
     scenarios = {
         '1.W Rest - No danger': (rest, normal),
         '1.L Run - No danger': (run, normal),
@@ -58,12 +79,6 @@ def test_learned_helplessness():
         '2.L Rest - Danger, no gate': (rest, in_danger_gate_open),
         '3.W Rest - Danger, gate closed': (rest, in_danger_gate_closed),
         '3.L Run - Danger, gate closed': (run, in_danger_gate_closed),
-    }
-    scenarios = {
-        'Rest': (rest,),
-        'Run': (run,),
-        '2.W Run - Danger, no gate': (run, in_danger_gate_open),
-        '2.L Rest - Danger, no gate': (rest, in_danger_gate_open),
     }
 
     subject = Respondant(
@@ -86,33 +101,48 @@ def test_learned_helplessness():
 
     # then begin shock treatment
     for i in range(300):
-        subject.learn(random.choice(ACTIONS + STIMULI))
+        if random.random() < 0.4:
+            subject.learn(shock)
+        else:
+            subject.learn(subject.decide(randomised=0.4))
         subject.store_predictions()
 
-    # verify learns to run when it's in danger
+    # verify learns to run when it's in danger (and gate open)
     assert subject.decide(in_danger_gate_open) == run
-    # remembers to rest when not
+    # remembers to rest under normal conditions
     assert subject.decide(normal) == rest
 
     # teach it learned helplessness
+    # close the gate, which cannot be opened by subject actions
     subject.environment[GATE] = 1
     subject.environment[DANGER] = 1
 
     for i in range(300):
-        subject.learn(random.choice(ACTIONS + STIMULI))
+        if random.random() < 0.4:
+            subject.learn(shock)
+        else:
+            subject.learn(subject.decide(randomised=0.4))
         subject.store_predictions()
 
-    subject.environment[GATE] = 0
-    ubject.environment[DANGER] = 1
-    for i in range(200):
-        subject.learn(subject.decide(randomised=0.2))
-
-    subject.plot_predictions()
-
-    # learns to rest when gate closed
+    # verify learns to rest when it's in danger
     assert subject.decide(in_danger_gate_closed) == rest
-    # learns to rest even when gate is open
+    # verify predicts to rest when get is open
+    assert subject.decide(in_danger_gate_closed) == rest
+
+    # finalise test with actual input
+    # by opening the gate
+    subject.environment[GATE] = 0
+    subject.environment[DANGER] = 1
+    for i in range(200):
+        subject.learn(subject.decide(randomised=0.1))
+
+    # learnt to rest when gate closed still
+    assert subject.decide(in_danger_gate_closed) == rest
+    # learnt to rest when gate is open still
     assert subject.decide(in_danger_gate_open) == rest
+
+    # plot predictions
+    subject.plot_predictions()
 
 if __name__ == '__main__':
     test_learned_helplessness()
