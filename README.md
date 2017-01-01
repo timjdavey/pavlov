@@ -4,46 +4,45 @@ This is a story about a dog. A dog which learned.
 
 ## Description
 
-Goal of project is to firstly recreate a number of Pavlov's famous [conditioning experiments](https://en.wikipedia.org/wiki/Classical_conditioning) using artifical neural networks rather than living dogs.
-
-Also, was an excuse to get up and running with the basics of neural nets.
+Goal of project is to recreate [Pavlov's famous conditioning experiments](https://en.wikipedia.org/wiki/Classical_conditioning) using artifical neural networks rather than living dogs. Also, it's a great excuse to have a play with the basics of neural nets.
  
 ## Terminology
 
 #### Respondant
-The test subject (i.e. dog). The name of the major outlining class.
+The test subject (i.e. dog). It's also the name of the primary experiment class in `pavlov.py`
 
 #### Actions
-What the `Respondant` is able to do e.g. run away from shock, sit down and rest, or eat.
+During an experiment, the `Respondant` is asked to decide what it'd like to do for any given situation. Actions are the list of things which the `Respondant` is able to do e.g. run away from a shock, sit down and rest, or eat.
 
 #### Stimuli
-What the `Respondant` might have acted upon it e.g. is shocked, bell rings, food appears.
+Similar to `Action` but these are things which act upon the `Respondant` e.g. is shocked, hears bell ring, sees food appear.
 
 #### Environment
-The environmental conditions around the `Respondant` e.g. Gate is closed, food is present.
+These are the environmental conditions around the `Respondant` e.g. Gate is closed, food is present.
 
 #### Sequence Memory
-Also known as episodic memory. All animals have a limited ability to remember events in sequence, which various by species. It's crucial in this case, as remembering that food comes after a bell requires some memory of sequence. It is a variable how much steps back the Respondant can remember.
+Also known as episodic memory. All animals have a limited ability to remember events in sequence. It's crucial in this case, as remembering that food comes after a bell requires then to remember that a bell just rang. In this case it's modelled as a variable, so it can be adjusted how many steps back the `Respondant` can remember.
 
 ## Network
 
-Is a basic `Backpropagation` network using the [Neupy](http://neupy.com/pages/home.html) framework.
+Is a basic `Backpropagation` network using the [Neupy framework](http://neupy.com/pages/home.html).
 
 #### Inputs 
-Are the it's previous Actions and Stimuli per sequence memory. And current environment conditions. Does not remember the environmental conditions for each step of memory, just the present.
+These are the previous actions and stimuli for each step in it's memory. Along with the current environmental conditions. Does not remember the environmental conditions for each step of memory, just the present.
 
 #### Output
-For a given environment, memory and action outputs a number of what it wants to do.
+For a given action, environment and memory of sequence of events - it outputs a number of how much it wants to do that action. This culminates in a function `decide` which for a given environment, will test all it's available actions and return which it most wants to do (with a small bit of introduced randomness).
 
 
 ## Learned Helplessness (gate.py)
 
-Successfully recreated the [experiment](https://en.wikipedia.org/wiki/Learned_helplessness) using a very simplified experimental test conditions.
+Successfully recreated the [experiment](https://en.wikipedia.org/wiki/Learned_helplessness)!.
 
-The basic experimental outline of learned helplessness is as follows
+The basic outline of learned helplessness is as follows
 
 1. Dog is placed on a floor
    * Nothing happens, standard & control
+   * Learns to just chill out and rest
 2. Dog is placed on electrified floor
    * Dog is randomly shocked
    * Learns to run away when shocked
@@ -60,9 +59,9 @@ There are four stages to the experiment (as outlined above). The following repre
 The x-axis shows steps in time e.g. every step in time, the Respondant decides what it wants to do at that given step, it does that action and learns from the output. Occassionally a step is overridden by a stimuli and the dog is shocked, learns from that output and the output of the subsequent steps.
 
 Each of the lines represents how desirable the action is (Run or Rest) in a given environmental condition
-* No danger - Escaped from shock
-* Danger, no gate - being shocked but the gate to the cage is not in place
-* Danger, gate closed - being shocked but the gate to the cage is in place and closed
+* No danger - not being shocked
+* Danger, no gate - being shocked, can escape from danger if Run
+* Danger, gate closed - being shocked, but cannot escape from danger
 
 ![pavlov_clean](https://cloud.githubusercontent.com/assets/13322/21580604/3132913e-cffb-11e6-8db1-153116d9c5d1.png)
 
