@@ -33,7 +33,9 @@ def normalised_dict_from_list(basic_list):
 
 
 class Respondant(object):
-
+    """
+    A generic class for running experiments.
+    """
     def __init__(self,
                  actions=None, environment=None, stimuli=None,
                  sequence_memory=0, verbose_neurons=True,
@@ -193,11 +195,17 @@ class Respondant(object):
         # return the best action
         return best_action
 
-    def store_predictions(self):
-        "Stores predictions given a set of scenarios"
+    def store_predictions(self, keys=None):
+        """
+        Stores predictions given a set of scenarios.
+        Can pass optional list of keys to only store for those values.
+        """
         if self.scenarios:
             for key, value in self.scenarios.items():
-                self.predictions[key].append(self.predict(*value))
+                if keys is None or key in keys:
+                    self.predictions[key].append(self.predict(*value))
+                else:
+                    self.predictions[key].append(0.0)
         else:
             raise ValueError("scenarios must be set at __init__")
 

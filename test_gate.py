@@ -4,6 +4,7 @@ except SystemError:
     from pavlov import Respondant
 import pytest
 import random
+from collections import OrderedDict
 
 # ENVIRONMENT VARIABLES
 
@@ -29,7 +30,7 @@ def run(environment):
         # runs from danger
         if environment[GATE]:
             # get closed, can't get out of danger
-            return 0.0, environment
+            return 0.01, environment
         else:
             # get open, can escape
             environment[DANGER] = 0
@@ -43,7 +44,7 @@ def run(environment):
 def shock(environment):
     "Now in immediate danger and hurting"
     environment[DANGER] = 1
-    return 0.0, environment
+    return 0.01, environment
 
 ACTIONS = [rest, run]
 STIMULI = [shock]
@@ -72,14 +73,16 @@ def test_learned_helplessness():
     in_danger_gate_closed = {DANGER: 1, GATE: 1}
 
     # used for plotting predictions
-    scenarios = {
-        '1.W Rest - No danger': (rest, normal),
-        '1.L Run - No danger': (run, normal),
-        '2.W Run - Danger, no gate': (run, in_danger_gate_open),
-        '2.L Rest - Danger, no gate': (rest, in_danger_gate_open),
-        '3.W Rest - Danger, gate closed': (rest, in_danger_gate_closed),
-        '3.L Run - Danger, gate closed': (run, in_danger_gate_closed),
-    }
+    scenarios = (
+        ('1. Rest - No danger', (rest, normal)),
+        ('2. Run - No danger', (run, normal)),
+        ('3. Rest - Danger, gate open', (rest, in_danger_gate_open)),
+        ('4. Run - Danger, gate open', (run, in_danger_gate_open)),
+        ('5. Rest - Danger, gate closed', (rest, in_danger_gate_closed)),
+        ('6. Run - Danger, gate closed', (run, in_danger_gate_closed)),
+    )
+    # scenario keys
+    sk = [r[0] for r in scenarios]
 
     subject = Respondant(
         actions=ACTIONS,
@@ -89,23 +92,23 @@ def test_learned_helplessness():
             GATE: 0,
         },
         hidden_layers=6,
-        scenarios=scenarios)
+        scenarios=dict(scenarios))
 
     # learns that resting is the best when no danger
     for i in range(100):
         subject.learn(subject.decide(randomised=0.4))
-        subject.store_predictions()
+        subject.store_predictions([sk[0], sk[1]])
 
     # verify learns to rest under normal conditions
     assert subject.decide(normal) == rest
 
-    # then begin shock treatment
+    # then begin shock treatment with gate open
     for i in range(300):
         if random.random() < 0.4:
             subject.learn(shock)
         else:
             subject.learn(subject.decide(randomised=0.4))
-        subject.store_predictions()
+        subject.store_predictions([sk[2], sk[3]])
 
     # verify learns to run when it's in danger (and gate open)
     assert subject.decide(in_danger_gate_open) == run
@@ -117,17 +120,17 @@ def test_learned_helplessness():
     subject.environment[GATE] = 1
     subject.environment[DANGER] = 1
 
-    for i in range(300):
+    for i in range(200):
         if random.random() < 0.4:
             subject.learn(shock)
         else:
             subject.learn(subject.decide(randomised=0.4))
-        subject.store_predictions()
+        subject.store_predictions([sk[4], sk[5]])
 
     # verify learns to rest when it's in danger
     assert subject.decide(in_danger_gate_closed) == rest
     # verify predicts to rest when get is open
-    assert subject.decide(in_danger_gate_closed) == rest
+    assert subject.decide(in_danger_gate_open) == rest
 
     # finalise test with actual input
     # by opening the gate
@@ -135,6 +138,7 @@ def test_learned_helplessness():
     subject.environment[DANGER] = 1
     for i in range(200):
         subject.learn(subject.decide(randomised=0.1))
+        subject.store_predictions([sk[2], sk[3]])
 
     # learnt to rest when gate closed still
     assert subject.decide(in_danger_gate_closed) == rest
